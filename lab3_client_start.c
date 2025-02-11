@@ -41,10 +41,14 @@ int main( ) {
 
 int HTML_tag_and_byte_counter(const int *s) {
 	//allow user to select chunk size
-	int chunk_size;
+	unsigned short chunk_size = 0; //4 <= chunk_size <= 1000
 	printf("Chunk size?: ");
 	scanf("%d", &chunk_size);
-
+	while(chunk_size < 4 || chunk_size > 1000) {
+		printf("Invalid chunk size, select chunk size between 4 and 1000\n");
+		scanf("%d", &chunk_size);
+	}
+	
 	//request files from server
 	char buf[256];
 	char request_files[] = "GET /~kkredo/file.html HTTP/1.0\r\n\r\n";
@@ -53,34 +57,50 @@ int HTML_tag_and_byte_counter(const int *s) {
 	//check if connection was established
 	ssize_t outgoing_data = send(*s, buf, strlen(buf), 0);
 	if(outgoing_data == -1) {
-		perror("OUTGOING_DATA\n")
+		perror("ERROR: OUTGOING_DATA\n")
 		return -1;
 	}
 
 	//connection established, recieve files from server
-	ssize_t incoming_data;
-	while(1) {
-		incoming_data = recv(*s, buf, sizeof(buf) - 1, 0);
+	ssize_t incoming_data, additional_data;
+	unsigned char num_h1_tags = 0;
+	bool exit = false; //set to true to exit while loop
+	while(!exit) {
 
-		//connection closed
-		if(incoming_data == 0) {
-			break;
+		incoming_data = 0;
+		//request data until entire chunk is recieved
+		while(incoming_data != chunk_size) {
+			additional_data = recv(*s, buf + incoming_data, chunk_size - incoming_data, 0);
+
+			//connection closed
+			if(additional_data == 0) {
+				incoming_data += additional_data;
+				exit = true;
+				printf("Connection closed by host\n");
+				break;
+			}
+			//error
+			else if(additional_data == -1) {
+				exit = true;
+				perror("ERROR: INCOMING_DATA\n");
+				break;
+			}
+			//accumulate data
+			else {
+				incoming_data += additional_data;
+			}
 		}
-		//error
-		else if(incoming_data == -1) {
-			perror("INCOMING_DATA\n");
-			break;
-		}
+
 		//process incoming data
-		else {
-			for(int i = 0; i < sizeof(incoming_data) - 3; i++) {
-				if(incoming_data[i] == '<' && incoming_data[i+1] == 'h' &&
-					incoming_data[i] == '1' && incoming_data[i+1] == '>' &&) {
-
-				}
+		buf[incoming_data] = '\0'; //null terminate string
+		for(int i = 0; i < incoming_data - 3; i++) {
+			if(buf[i] == '<' && buf[i+1] == 'h' &&
+				buf[i+2] == '1' && buf[i+3] == '>') {
+					num_h1_tags += 1;
 			}
 		}
 	}
+	return num_h1_tags;
 }
 
 int lookup_and_connect( const char *host, const char *service ) {
