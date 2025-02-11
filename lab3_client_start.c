@@ -8,6 +8,7 @@
 #include <netdb.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 /*
  * Lookup a host IP address and connect to it using service. Arguments match the first two
@@ -16,7 +17,7 @@
  * Returns a connected socket descriptor or -1 on error. Caller is responsible for closing
  * the returned socket.
  */
-int HTML_tag_and_byte_counter(const int *s, unsigned short *chunk_size);
+int HTML_tag_and_byte_counter(int s, unsigned short chunk_size);
 int lookup_and_connect( const char *host, const char *service );
 
 int main(int argc, char *argv[]) {
@@ -31,28 +32,29 @@ int main(int argc, char *argv[]) {
 
 	//start of Program 1: HTML Tag and Byte Counter
 	unsigned short chunk_size = (unsigned short)atoi(argv[1]);
-	HTML_tag_and_byte_counter(&s, &chunk_size);
+	HTML_tag_and_byte_counter(s, chunk_size);
 
 	close( s );
 
 	return 0;
 }
 
-int HTML_tag_and_byte_counter(const int *s, unsigned short *chunk_size) {
-	if(*chunk_size < 4 || *chunk_size > 1000) {
+int HTML_tag_and_byte_counter(int s, unsigned short chunk_size) {
+	if(chunk_size < 4 || chunk_size > 1000) {
         fprintf(stderr, "ERROR: INVALID CHUNK SIZE\n");
 		return -1;
 	}
 	
 	//request files from server
-	char buf[*chunk_size]; //maximum size of data
+	char buf[chunk_size + 1]; //maximum size of data
 	char request_files[] = "GET /~kkredo/file.html HTTP/1.0\r\n\r\n";
 	strcpy(buf, request_files);
 
 	//check if connection was established
-	ssize_t outgoing_data = send(*s, buf, strlen(buf), 0);
+	ssize_t outgoing_data = send(s, buf, strlen(buf), 0);
+
 	if(outgoing_data == -1) {
-		perror("ERROR: COULD NOT ESTABLISH CONNECTION WITH SERVER\n")
+		perror("ERROR: COULD NOT ESTABLISH CONNECTION WITH SERVER\n");
 		return -1;
 	}
 
@@ -64,8 +66,8 @@ int HTML_tag_and_byte_counter(const int *s, unsigned short *chunk_size) {
 	while(!exit) {
 		incoming_data = 0;
 		//request data until entire chunk is recieved
-		while(incoming_data != *chunk_size) {
-			additional_data = recv(*s, buf + incoming_data, *chunk_size - incoming_data, 0);
+		while(incoming_data != chunk_size) {
+			additional_data = recv(s, buf + incoming_data, chunk_size - incoming_data, 0);
 
 			//connection closed
 			if(additional_data == 0) {
@@ -87,6 +89,7 @@ int HTML_tag_and_byte_counter(const int *s, unsigned short *chunk_size) {
 
 		//process incoming data
 		num_bytes += incoming_data;
+		buf[incoming_data] = '\0';
 		for(int i = 0; i < incoming_data - 3; i++) {
 			if(buf[i] == '<' && buf[i+1] == 'h' &&
 				buf[i+2] == '1' && buf[i+3] == '>') {
