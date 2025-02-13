@@ -23,6 +23,12 @@
  
  int main(int argc, char *argv[]) {
 	 int chunk_size = atoi(argv[1]);
+	 if(chunk_size < 4 || chunk_size > 1000) {
+		printf("ERROR: INVALID CHUNK SIZE\n");
+		printf("4 <= CHUNK SIZE <= 1000\n");
+		return -1;
+	 }
+
 	 char *host = "www.ecst.csuchico.edu";
 	 char buf[chunk_size + 1];
 	 int s;
@@ -32,7 +38,7 @@
 		 exit( 1 );
 	 }
  
-	 char* request = "GET /~kkredo/file.html HTTP/1.0\r\n\r\n";
+	 char *request = "GET /~kkredo/file.html HTTP/1.0\r\n\r\n";
 	 strcpy(buf, request);
 	 send(s, buf, strlen(buf), 0);
  
