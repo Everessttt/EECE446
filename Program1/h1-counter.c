@@ -24,7 +24,7 @@
  int main(int argc, char *argv[]) {
 	 int chunk_size = atoi(argv[1]);
 	 char *host = "www.ecst.csuchico.edu";
-	 char buf[chunk_size];
+	 char buf[chunk_size + 1];
 	 int s;
  
 	 /* Lookup IP and connect to server */
