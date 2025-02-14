@@ -38,10 +38,26 @@
 		 exit( 1 );
 	 }
  
+	 //sent request to host
 	 char *request = "GET /~kkredo/file.html HTTP/1.0\r\n\r\n";
 	 strcpy(buf, request);
-	 send(s, buf, strlen(buf), 0);
+	 ssize_t data_sent, total_data_sent = 0;
+	 size_t remaining_data = strlen(buf);
+	 while(remaining_data > 0) {
+		data_sent = send(s, buf + total_data_sent, remaining_data, 0);
+		//printf("SEND: %zu\n", remaining_data);
+		if(data_sent == -1) {
+			perror("ERROR: OUTGOING_DATA\n");
+			return -1;
+		}
+		else {
+			total_data_sent += data_sent;
+			remaining_data -= data_sent;
+		}
+	 }
+	 //printf("CONNECTION ESTABLISHED\n");
  
+	 //recieve data from host
 	 ssize_t incoming_data, additional_data;
 	 unsigned char num_h1_tags = 0;
 	 size_t num_bytes = 0;
@@ -51,6 +67,7 @@
 		 //request data until entire chunk is recieved
 		 while(incoming_data != chunk_size) {
 			 additional_data = recv(s, buf + incoming_data, chunk_size - incoming_data, 0);
+			 //printf("RECV: %zu\n", additional_data);
  
 			 //connection closed
 			 if(additional_data == 0) {
@@ -83,7 +100,6 @@
  
 	 printf("Number of <h1> tags: %u\n", num_h1_tags);
 	 printf("Number of bytes: %zu\n", num_bytes);
-	 return num_h1_tags;
  
 	 close( s );
  
