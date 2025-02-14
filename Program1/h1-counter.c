@@ -1,6 +1,7 @@
 /* This code is an updated version of the sample code from "Computer Networks: A Systems
  * Approach," 5th Edition by Larry L. Peterson and Bruce S. Davis. Some code comes from
  * man pages, mostly getaddrinfo(3). */
+<<<<<<< HEAD
  #include <stdio.h>
  #include <stdlib.h>
  #include <sys/types.h>
@@ -24,11 +25,85 @@
  int main(int argc, char *argv[]) {
 	 int chunk_size = atoi(argv[1]);
 	 if(chunk_size < 4 || chunk_size > 1000) {
+=======
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <string.h>
+#include <unistd.h>
+#include <stdbool.h>
+
+#define SERVER_PORT "80"
+
+int lookup_and_connect(const char *host, const char *service);
+
+int recvall(int s, char *buf, int *len, int chunk_size)
+{
+	int total = 0;							// how many bytes we've received
+	int bytesleft = chunk_size; // how many more we need to receive
+	int n;
+
+	while (bytesleft > 0) // Ensure it only requests what’s left
+	{
+		n = recv(s, buf + total, bytesleft, 0);
+		if (n <= 0)
+		{
+			break; // Stop on error or connection closed
+		}
+
+		//printf("n: %u \n", n);
+
+		total += n;
+
+		//printf("Total: %u \n", total);
+
+		bytesleft -= n;
+
+		//printf("bytes left: %u \n", bytesleft);
+	}
+
+	*len = total; // Return number actually received
+
+	return (n < 0) ? -1 : 0; // Ensure correct return value
+}
+
+int sendall(int s, const char *buf, int *len)
+{
+	int total = 0;				// how many bytes we've sent
+	int bytesleft = *len; // how many we have left to send
+	int n;
+
+	while (total < *len)
+	{
+		n = send(s, buf + total, bytesleft, 0);
+		if (n == -1)
+		{
+			break;
+		}
+		total += n;
+		bytesleft -= n;
+	}
+
+	*len = total; // return number actually sent here
+
+	return n == -1 ? -1 : 0; // return -1 on failure, 0 on success
+}
+
+int main(int argc, char *argv[])
+{
+	int chunk_size = atoi(argv[1]);
+
+	if (chunk_size < 4 || chunk_size > 1000)
+	{
+>>>>>>> 1e1defa (Updated recvall and sendall functions, passing partial tests)
 		printf("ERROR: INVALID CHUNK SIZE\n");
 		printf("4 <= CHUNK SIZE <= 1000\n");
 		return -1;
 	 }
 
+<<<<<<< HEAD
 	 char *host = "www.ecst.csuchico.edu";
 	 char buf[chunk_size + 1];
 	 int s;
@@ -144,3 +219,110 @@
 	 return s;
  }
  
+=======
+	char *host = "www.ecst.csuchico.edu";
+	char buf[chunk_size + 1]; // Buffer with space for null termination
+	int s;
+
+	if ((s = lookup_and_connect(host, SERVER_PORT)) < 0)
+	{
+		exit(1);
+	}
+
+	const char *request = "GET /~kkredo/file.html HTTP/1.0\r\n\r\n";
+	int req_len = strlen(request);
+
+	// Replacing sendall with simple send
+	if (sendall(s, request, &req_len) == -1)
+	{
+		perror("send");
+		close(s);
+		exit(1);
+	}
+
+	int amount_read = 0;
+	unsigned char num_h1_tags = 0;
+	size_t num_bytes = 0;
+
+	while (true)
+	{
+		amount_read = 0;
+
+		if (recvall(s, buf, &amount_read, chunk_size) == -1)
+		{
+			perror("recvall");
+			break;
+		}
+
+		if (amount_read == 0)
+		{
+			break; // Server closed connection
+		}
+
+		num_bytes += amount_read;
+
+		// Ensure safe null termination
+		if (amount_read < chunk_size)
+		{
+			buf[amount_read] = '\0'; // Prevent overflow
+		}
+
+		// Process the chunk, replace with library
+		for (ssize_t i = 0; i < amount_read - 3; i++)
+		{
+			if (buf[i] == '<' && buf[i + 1] == 'h' && buf[i + 2] == '1' && buf[i + 3] == '>')
+			{
+				num_h1_tags++;
+			}
+		}
+	}
+
+	printf("Number of <h1> tags: %u\n", num_h1_tags);
+	printf("Number of bytes: %zu\n", num_bytes);
+
+	close(s);
+	return 0;
+}
+
+int lookup_and_connect(const char *host, const char *service)
+{
+	struct addrinfo hints, *rp, *result;
+	int s;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC; // use AF_UNSPEC
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = 0;
+	hints.ai_protocol = 0;
+
+	if ((s = getaddrinfo(host, service, &hints, &result)) != 0)
+	{
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+		return -1;
+	}
+
+	for (rp = result; rp != NULL; rp = rp->ai_next)
+	{
+		if ((s = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol)) == -1)
+		{
+			continue;
+		}
+
+		if (connect(s, rp->ai_addr, rp->ai_addrlen) != -1)
+		{
+			break;
+		}
+
+		close(s);
+	}
+
+	if (rp == NULL)
+	{
+		perror("connect");
+		return -1;
+	}
+
+	freeaddrinfo(result);
+	return s;
+}
+>>>>>>> 1e1defa (Updated recvall and sendall functions, passing partial tests)
